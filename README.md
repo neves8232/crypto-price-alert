@@ -458,8 +458,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/crypto-price-alert/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/crypto-price-alert/discussions)
+- **Issues**: [GitHub Issues](https://github.com/neves8232/crypto-price-alert/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/neves8232/crypto-price-alert/discussions)
 - **Email**: support@crypto-price-alert.com
 
 ## Project Status
