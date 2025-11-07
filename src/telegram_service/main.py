@@ -26,10 +26,10 @@ from telegram.error import BadRequest, TelegramError
 __version__ = "1.0.0"
 __service_name__ = "telegram-alert-service"
 
-from .auth import AuthToken
-from .config import settings
-from .health import perform_health_check
-from .metrics import (
+from auth import AuthToken
+from config import settings
+from health import perform_health_check
+from metrics import (
     errors_total,
     message_delivery_seconds,
     messages_sent_total,
@@ -41,9 +41,9 @@ from .metrics import (
     requests_total,
     retry_attempts_total,
 )
-from .models import AlertRequest, AlertResponse, ErrorResponse, HealthCheck
-from .rate_limiter import RateLimiter
-from .telegram_client import TelegramClient
+from models import AlertRequest, AlertResponse, ErrorResponse, HealthCheck
+from rate_limiter import RateLimiter
+from telegram_client import TelegramClient
 
 # Configure structured logging
 structlog.configure(
