@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Price Alert System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>Crypto Price Alert System</h1>
+                <div class="header-actions">
+                    <div id="health-status" class="health-indicator">
+                        <span class="health-dot"></span>
+                        <span class="health-text">Checking...</span>
+                    </div>
+                    <div class="refresh-info">
+                        <span id="last-update">Never</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Dashboard Section -->
+            <section class="dashboard-section">
+                <div class="section-header">
+                    <h2>Dashboard</h2>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <span class="stat-label">Monitored</span>
+                            <span class="stat-value" id="crypto-count">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Active Alerts</span>
+                            <span class="stat-value" id="alert-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="crypto-grid" class="crypto-grid">
+                    <div class="empty-state">
+                        <p>No cryptocurrencies being monitored yet.</p>
+                        <p>Add one below to get started!</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Cryptocurrency Management Section -->
+            <section class="management-section">
+                <div class="section-header">
+                    <h2>Cryptocurrency Management</h2>
+                </div>
+
+                <div class="add-crypto-form">
+                    <div class="form-group">
+                        <label for="crypto-select">Add Cryptocurrency</label>
+                        <select id="crypto-select" class="form-control">
+                            <option value="">Select a cryptocurrency...</option>
+                            <option value="bitcoin|BTC|Bitcoin">Bitcoin (BTC)</option>
+                            <option value="ethereum|ETH|Ethereum">Ethereum (ETH)</option>
+                            <option value="cardano|ADA|Cardano">Cardano (ADA)</option>
+                            <option value="solana|SOL|Solana">Solana (SOL)</option>
+                            <option value="ripple|XRP|Ripple">XRP (XRP)</option>
+                            <option value="polkadot|DOT|Polkadot">Polkadot (DOT)</option>
+                            <option value="dogecoin|DOGE|Dogecoin">Dogecoin (DOGE)</option>
+                            <option value="avalanche-2|AVAX|Avalanche">Avalanche (AVAX)</option>
+                            <option value="chainlink|LINK|Chainlink">Chainlink (LINK)</option>
+                            <option value="polygon|MATIC|Polygon">Polygon (MATIC)</option>
+                        </select>
+                    </div>
+                    <button id="add-crypto-btn" class="btn btn-primary">
+                        <span class="btn-icon">+</span> Add to Watchlist
+                    </button>
+                </div>
+
+                <div id="crypto-list" class="crypto-list">
+                    <!-- Cryptocurrency items will be populated here -->
+                </div>
+            </section>
+
+            <!-- Alert Management Section -->
+            <section class="management-section">
+                <div class="section-header">
+                    <h2>Alert Management</h2>
+                    <button id="create-alert-btn" class="btn btn-secondary">
+                        <span class="btn-icon">+</span> Create Alert
+                    </button>
+                </div>
+
+                <!-- Alert Creation Form (Hidden by default) -->
+                <div id="alert-form-container" class="alert-form-container" style="display: none;">
+                    <div class="form-card">
+                        <h3 id="alert-form-title">Create New Alert</h3>
+                        <form id="alert-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="alert-crypto">Cryptocurrency</label>
+                                    <select id="alert-crypto" class="form-control" required>
+                                        <option value="">Select cryptocurrency...</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="alert-type">Alert Type</label>
+                                    <select id="alert-type" class="form-control" required>
+                                        <option value="">Select alert type...</option>
+                                        <option value="PRICE_ABOVE">Price Above</option>
+                                        <option value="PRICE_BELOW">Price Below</option>
+                                        <option value="PRICE_CROSSES_UP">Price Crosses Up</option>
+                                        <option value="PRICE_CROSSES_DOWN">Price Crosses Down</option>
+                                        <option value="PRICE_CHANGE_PERCENT">Price Change %</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="alert-threshold">Threshold</label>
+                                    <input type="number" id="alert-threshold" class="form-control"
+                                           placeholder="Enter threshold value" step="0.01" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="alert-telegram-chat">Telegram Chat ID</label>
+                                    <input type="text" id="alert-telegram-chat" class="form-control"
+                                           placeholder="Your Telegram chat ID" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="alert-enabled" checked>
+                                    <span>Enable alert immediately</span>
+                                </label>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Save Alert</button>
+                                <button type="button" id="cancel-alert-btn" class="btn btn-secondary">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Alert List -->
+                <div id="alert-list" class="alert-list">
+                    <!-- Alert items will be populated here -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast">
+            <span id="toast-message"></span>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirm-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3 id="confirm-title">Confirm Action</h3>
+                <p id="confirm-message"></p>
+                <div class="modal-actions">
+                    <button id="confirm-yes" class="btn btn-danger">Yes</button>
+                    <button id="confirm-no" class="btn btn-secondary">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/cryptocurrencies.js"></script>
+    <script src="/static/js/alerts.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

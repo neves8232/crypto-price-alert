@@ -1,0 +1,209 @@
+# Docker Compose Production Overrides
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.9'
+
+services:
+  # ==========================================
+  # PostgreSQL - Production Configuration
+  # ==========================================
+  postgres:
+    environment:
+      # Production settings
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      # Production volume with better performance
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    # Production restart policy
+    restart: always
+    # Stricter health checks
+    healthcheck:
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+
+  # ==========================================
+  # Telegram Service - Production Configuration
+  # ==========================================
+  telegram-service:
+    environment:
+      # Production environment
+      APP_ENV: production
+      LOG_LEVEL: INFO
+
+      # Production rate limiting
+      RATE_LIMIT_MESSAGES_PER_SECOND: 25.0
+      RATE_LIMIT_BURST_SIZE: 50
+
+      # Enhanced retry settings
+      TELEGRAM_RETRY_ATTEMPTS: 5
+      TELEGRAM_RETRY_DELAY_SECONDS: 3.0
+    ports:
+      # Do NOT expose port in production (internal only)
+      # Comment out or remove the ports section for better security
+      # - "52001:52001"  # Remove this line in production
+      []
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      replicas: 1
+    restart: always
+    healthcheck:
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+    # Security: Read-only root filesystem (if application supports it)
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
+
+  # ==========================================
+  # Crypto Service - Production Configuration
+  # ==========================================
+  crypto-service:
+    environment:
+      # Production environment
+      APP_ENV: production
+      LOG_LEVEL: INFO
+
+      # Production database (PostgreSQL)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+      # Production polling intervals
+      CRYPTO_POLL_INTERVAL_SECONDS: 15
+      POLL_INTERVAL_SECONDS: 15
+
+      # Production alert settings
+      ALERT_DEBOUNCE_SECONDS: 30
+
+      # Production CORS (restrict to specific origins)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:52000}
+    ports:
+      # Only expose web UI port
+      - "52000:52000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      replicas: 1
+    restart: always
+    healthcheck:
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+    # Security: Read-only root filesystem (if application supports it)
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
+    #   - /app/data
+
+  # ==========================================
+  # Prometheus - Production Configuration
+  # ==========================================
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+
+  # ==========================================
+  # Grafana - Production Configuration
+  # ==========================================
+  grafana:
+    environment:
+      # Production security
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set in production}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SNAPSHOTS_EXTERNAL_ENABLED=false
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+
+# ==========================================
+# Production Volumes
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+    name: crypto-postgres-data-prod
+  prometheus_data:
+    driver: local
+    name: crypto-prometheus-data-prod
+  grafana_data:
+    driver: local
+    name: crypto-grafana-data-prod
+
+# ==========================================
+# Networks
+# ==========================================
+networks:
+  crypto-network:
+    driver: bridge
+    name: crypto-network-prod
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

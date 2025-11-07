@@ -1,0 +1,239 @@
+# Docker Compose Configuration for Crypto Price Alert System
+# Main orchestration file for production deployment
+
+version: '3.9'
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: crypto-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_alerts}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crypto_user} -d ${POSTGRES_DB:-crypto_alerts}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Telegram Alert Service
+  # ==========================================
+  telegram-service:
+    build:
+      context: ./src/telegram_service
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: crypto-alert/telegram-service:latest
+    container_name: telegram-alert-service
+    environment:
+      # Application
+      APP_NAME: telegram-alert-service
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Service Port
+      SERVICE_PORT: 52001
+      HOST: 0.0.0.0
+
+      # Telegram Configuration
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN must be set}
+      TELEGRAM_API_TIMEOUT_SECONDS: ${TELEGRAM_API_TIMEOUT_SECONDS:-30}
+      TELEGRAM_RETRY_ATTEMPTS: ${TELEGRAM_RETRY_ATTEMPTS:-3}
+      TELEGRAM_RETRY_DELAY_SECONDS: ${TELEGRAM_RETRY_DELAY_SECONDS:-2.0}
+
+      # Rate Limiting
+      RATE_LIMIT_MESSAGES_PER_SECOND: ${RATE_LIMIT_MESSAGES_PER_SECOND:-25.0}
+      RATE_LIMIT_BURST_SIZE: ${RATE_LIMIT_BURST_SIZE:-50}
+      QUEUE_MAX_SIZE: ${QUEUE_MAX_SIZE:-1000}
+
+      # Security
+      AUTH_TOKEN: ${AUTH_TOKEN:?AUTH_TOKEN must be set}
+
+      # Observability
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
+    ports:
+      # Port 52001 exposed for internal communication (optional: remove for full isolation)
+      - "52001:52001"
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:52001/health', timeout=5.0)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Crypto Price Alert Service
+  # ==========================================
+  crypto-service:
+    build:
+      context: ./src/crypto_service
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: crypto-alert/crypto-service:latest
+    container_name: crypto-price-alert
+    environment:
+      # Application
+      APP_NAME: crypto-price-alert
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Service Port
+      API_PORT: 52000
+      SERVICE_PORT: 52000
+      API_HOST: 0.0.0.0
+
+      # Database Configuration
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-crypto_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-crypto_alerts}}
+
+      # Telegram Service Integration
+      TELEGRAM_SERVICE_URL: http://telegram-service:52001
+      AUTH_TOKEN: ${AUTH_TOKEN:?AUTH_TOKEN must be set}
+      TELEGRAM_SERVICE_TIMEOUT_SECONDS: ${TELEGRAM_SERVICE_TIMEOUT_SECONDS:-10}
+
+      # Crypto API Settings
+      CRYPTO_API_PROVIDER: ${CRYPTO_API_PROVIDER:-coingecko}
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
+      CRYPTO_POLL_INTERVAL_SECONDS: ${CRYPTO_POLL_INTERVAL_SECONDS:-15}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-15}
+      MAX_WATCHLIST_SIZE: ${MAX_WATCHLIST_SIZE:-25}
+
+      # Alert Settings
+      ALERT_DEBOUNCE_SECONDS: ${ALERT_DEBOUNCE_SECONDS:-30}
+      ALERT_BATCH_SIZE: ${ALERT_BATCH_SIZE:-10}
+
+      # Security
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:52000}
+
+      # Observability
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
+    ports:
+      # Web UI accessible on port 52000
+      - "52000:52000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      telegram-service:
+        condition: service_healthy
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:52000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Prometheus (Optional - Metrics Collection)
+  # ==========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crypto-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - crypto-network
+    depends_on:
+      - crypto-service
+      - telegram-service
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - monitoring
+
+  # ==========================================
+  # Grafana (Optional - Visualization)
+  # ==========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: crypto-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - crypto-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - monitoring
+
+# ==========================================
+# Networks
+# ==========================================
+networks:
+  crypto-network:
+    driver: bridge
+    name: crypto-network
+
+# ==========================================
+# Volumes
+# ==========================================
+volumes:
+  postgres_data:
+    name: crypto-postgres-data
+  prometheus_data:
+    name: crypto-prometheus-data
+  grafana_data:
+    name: crypto-grafana-data

@@ -1,0 +1,56 @@
+# Testing Dependencies for Crypto Price Alert System
+
+# Core Testing Framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.5.0  # Parallel test execution
+pytest-timeout>=2.2.0  # Test timeouts
+pytest-mock>=3.12.0  # Mocking utilities
+
+# HTTP Testing
+httpx>=0.25.0
+respx>=0.20.0  # Mock HTTP requests
+
+# Database Testing
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+aiosqlite>=0.19.0  # Async SQLite for tests
+asyncpg>=0.29.0  # PostgreSQL async driver for integration tests
+
+# Test Data Generation
+faker>=20.0.0
+factory-boy>=3.3.0
+
+# Load Testing
+locust>=2.17.0
+
+# Code Quality
+ruff>=0.1.0
+black>=23.11.0
+isort>=5.12.0
+mypy>=1.7.0
+
+# Security Testing
+safety>=2.3.0
+bandit>=1.7.5
+
+# Coverage Reporting
+coverage[toml]>=7.3.0
+
+# Additional Testing Utilities
+freezegun>=1.4.0  # Time mocking
+responses>=0.24.0  # HTTP mocking
+pytest-env>=1.1.0  # Environment variable management
+pytest-benchmark>=4.0.0  # Performance benchmarking
+
+# Service-Specific Dependencies (needed for tests)
+pydantic>=2.5.0
+fastapi>=0.104.0
+python-telegram-bot>=20.7
+structlog>=23.2.0
+
+# Optional but Recommended
+pytest-html>=4.1.0  # HTML test reports
+pytest-json-report>=1.5.0  # JSON test reports
+pytest-sugar>=0.9.7  # Better test output

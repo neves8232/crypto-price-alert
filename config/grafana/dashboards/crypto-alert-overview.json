@@ -1,0 +1,74 @@
+{
+  "dashboard": {
+    "title": "Crypto Price Alert - System Overview",
+    "tags": ["crypto", "alerts", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Request Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{service=\"crypto-service\"}[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Alert Delivery Success Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(telegram_messages_sent_total{service=\"telegram-service\",status=\"success\"}[5m])",
+            "legendFormat": "Success"
+          },
+          {
+            "expr": "rate(telegram_messages_sent_total{service=\"telegram-service\",status=\"failed\"}[5m])",
+            "legendFormat": "Failed"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Active Alerts",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "alerts_active_total{service=\"crypto-service\"}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Monitored Cryptocurrencies",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "cryptocurrencies_monitored_total{service=\"crypto-service\"}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Response Time (p95)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=\"crypto-service\"}[5m]))",
+            "legendFormat": "p95"
+          }
+        ]
+      }
+    ]
+  }
+}

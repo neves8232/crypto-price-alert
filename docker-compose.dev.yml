@@ -1,0 +1,131 @@
+# Docker Compose Development Overrides
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.9'
+
+services:
+  # ==========================================
+  # Development: Disable PostgreSQL (use SQLite instead)
+  # ==========================================
+  postgres:
+    # In development, we don't need PostgreSQL
+    # Comment out or use profiles to disable
+    profiles:
+      - postgres
+
+  # ==========================================
+  # Telegram Service - Development Configuration
+  # ==========================================
+  telegram-service:
+    build:
+      context: ./src/telegram_service
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for faster rebuilds
+    environment:
+      # Development Environment
+      APP_ENV: development
+      LOG_LEVEL: DEBUG
+
+      # Relaxed rate limiting for testing
+      RATE_LIMIT_MESSAGES_PER_SECOND: 10.0
+      RATE_LIMIT_BURST_SIZE: 20
+    volumes:
+      # Mount source code for hot reload (optional, requires proper setup)
+      - ./src/telegram_service:/app:ro
+    ports:
+      # Expose port for direct access
+      - "52001:52001"
+    # Override restart policy for development
+    restart: "no"
+    # Faster health checks in development
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 10s
+
+  # ==========================================
+  # Crypto Service - Development Configuration
+  # ==========================================
+  crypto-service:
+    build:
+      context: ./src/crypto_service
+      dockerfile: Dockerfile
+    environment:
+      # Development Environment
+      APP_ENV: development
+      LOG_LEVEL: DEBUG
+
+      # Use SQLite instead of PostgreSQL
+      DATABASE_URL: sqlite+aiosqlite:///./data/crypto_alerts.db
+
+      # Faster polling for development
+      CRYPTO_POLL_INTERVAL_SECONDS: 30
+      POLL_INTERVAL_SECONDS: 30
+
+      # Reduced debounce for testing
+      ALERT_DEBOUNCE_SECONDS: 10
+
+      # Development CORS (allow all)
+      CORS_ORIGINS: "*"
+    volumes:
+      # Mount source code for hot reload
+      - ./src/crypto_service:/app:ro
+      # Persist SQLite database on host
+      - ./data:/app/data
+    ports:
+      # Expose main API port
+      - "52000:52000"
+    depends_on:
+      telegram-service:
+        condition: service_healthy
+      # Remove postgres dependency in dev
+    # Override restart policy for development
+    restart: "no"
+    # Faster health checks in development
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 15s
+    # Additional development tools
+    command: >
+      sh -c "
+        echo 'Starting in development mode...' &&
+        python -m uvicorn crypto_service.main:app --host 0.0.0.0 --port 52000 --reload
+      "
+
+  # ==========================================
+  # Development Tools - Code Watcher (Optional)
+  # ==========================================
+  # Uncomment if you want automatic code reload
+  # watcher:
+  #   image: node:18-alpine
+  #   container_name: crypto-watcher
+  #   working_dir: /app
+  #   volumes:
+  #     - ./src:/app/src:ro
+  #   command: npx nodemon --watch src --exec "docker-compose restart crypto-service telegram-service"
+  #   networks:
+  #     - crypto-network
+  #   profiles:
+  #     - dev-tools
+
+# ==========================================
+# Development Volumes
+# ==========================================
+volumes:
+  # Override postgres volume to use local directory
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+
+# ==========================================
+# Networks (inherit from main compose file)
+# ==========================================
+networks:
+  crypto-network:
+    name: crypto-network-dev

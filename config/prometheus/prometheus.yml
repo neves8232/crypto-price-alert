@@ -1,0 +1,62 @@
+# Prometheus Configuration for Crypto Price Alert System
+# ========================================================
+
+global:
+  scrape_interval: 15s        # How often to scrape targets
+  evaluation_interval: 15s    # How often to evaluate rules
+  scrape_timeout: 10s         # Timeout for scraping
+
+  # Attach labels to all metrics
+  external_labels:
+    monitor: 'crypto-alert-monitor'
+    environment: 'production'
+
+# Alerting configuration (optional - requires Alertmanager)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Rule files (optional - for custom alerts)
+# rule_files:
+#   - 'alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Crypto Price Alert Service
+  - job_name: 'crypto-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['crypto-service:52000']
+        labels:
+          service: 'crypto-service'
+          component: 'api'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Telegram Alert Service
+  - job_name: 'telegram-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['telegram-service:52001']
+        labels:
+          service: 'telegram-service'
+          component: 'alerts'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # PostgreSQL Exporter (if using postgres_exporter)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres'
+  #         component: 'database'
