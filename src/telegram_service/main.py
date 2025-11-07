@@ -22,7 +22,10 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from telegram.error import BadRequest, TelegramError
 
-from . import __service_name__, __version__
+# Service metadata
+__version__ = "1.0.0"
+__service_name__ = "telegram-alert-service"
+
 from .auth import AuthToken
 from .config import settings
 from .health import perform_health_check
